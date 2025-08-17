@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Rainbow Assistant</title>
+  <style>
+    :root {
+      --bg: #0f1226;
+      --card: #151a34;
+      --text: #ecf0ff;
+      --muted: #a9b0d3;
+      --accent: linear-gradient(90deg,#ff005e,#ff8a00,#ffd400,#4cd964,#0fd3ff,#6c4cff,#ff00ff);
+      --danger: #ff476f;
+      --ok: #21d07a;
+      --border: rgba(255,255,255,0.12);
+      --shadow: 0 10px 30px rgba(0,0,0,.35);
+    }
+    *{box-sizing:border-box} html,body{height:100%}
+    body{margin:0;display:flex;align-items:center;justify-content:center;background:var(--bg);color:var(--text);font-family:sans-serif}
+    main{padding:2rem;max-width:600px;width:90%;background:var(--card);border-radius:1rem;box-shadow:var(--shadow);display:flex;flex-direction:column;align-items:center}
+    h1{margin:0 0 0.5rem 0;text-align:center}
+    .subtitle{text-align:center;margin-bottom:2rem;color:var(--muted)}
+    input{font-size:1.5rem;padding:0.5rem;letter-spacing:0.2rem;text-transform:uppercase;border-radius:0.5rem;border:1px solid var(--border);width:100%;text-align:center}
+    input.valid{border-color:var(--ok);color:var(--ok)}
+    input:not(.valid){border-color:var(--danger);color:var(--danger)}
+    button{padding:0.75rem 1.5rem;margin-top:1rem;font-size:1rem;border:none;border-radius:0.5rem;background:var(--accent);color:#fff;cursor:pointer}
+    button:disabled{opacity:0.4;cursor:not-allowed}
+    .results{margin-top:2rem;width:100%;max-height:300px;overflow-y:auto;background:var(--card);border:1px solid var(--border);border-radius:0.5rem;padding:1rem}
+    .resultsHeader{display:flex;justify-content:space-between;align-items:center;margin-bottom:0.5rem}
+    ul{list-style:none;padding:0;margin:0} ul li{padding:0.25rem 0;border-bottom:1px solid var(--border)}
+    .chips{display:flex;justify-content:center;margin-top:0.5rem;margin-bottom:0.5rem} .chip{width:2rem;height:2rem;margin:0 0.25rem;border-radius:0.25rem;background:var(--border);display:flex;align-items:center;justify-content:center;font-weight:bold} .chip.filled{background:var(--ok)}
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Rainbow Assistant</h1>
+    <p class="subtitle">Enter exactly seven letters. We’ll find every 7-letter anagram from the built-in word list.</p>
+    <input id="letters" type="text" maxlength="7" placeholder="ABCDEFG" aria-label="Enter exactly seven letters" autocomplete="off" autocapitalize="characters" spellcheck="false">
+    <div class="chips" id="chips"></div>
+    <button id="solve" disabled>Solve</button>
+    <div class="results" id="results">
+      <div class="resultsHeader"><strong>Results</strong> <span id="count">0</span></div>
+      <ul id="list"></ul>
+    </div>
+  </main>
+
+  <script src="wordmap.js"></script>
+  <script>
+    (function(){
+      const input = document.getElementById('letters');
+      const button = document.getElementById('solve');
+      const list = document.getElementById('list');
+      const count = document.getElementById('count');
+      const chips = document.getElementById('chips');
+      const results = document.getElementById('results');
+
+      function renderChips(value){
+        chips.innerHTML = '';
+        for(let i=0;i<7;i++){
+          const c = document.createElement('div');
+          c.className = 'chip' + (i < value.length ? ' filled' : '');
+          c.textContent = value[i] || '';
+          chips.appendChild(c);
+        }
+      }
+
+      function sanitizeToLettersUpper(str){
+        return (str.match(/[a-z]/gi) || []).join('').toUpperCase().slice(0,7);
+      }
+
+      function setValidityUI(len){
+        if(len === 7){ input.classList.add('valid'); }
+        else{ input.classList.remove('valid'); }
+      }
+
+      function updateUI(){
+        const val = input.value;
+        button.disabled = (val.length !== 7);
+        setValidityUI(val.length);
+        renderChips(val);
+        results.setAttribute('aria-busy','false');
+      }
+
+      input.addEventListener('input', ()=>{
+        const cleaned = sanitizeToLettersUpper(input.value);
+        if(cleaned !== input.value){ input.value = cleaned; }
+        updateUI();
+      });
+
+      input.value=''; renderChips(''); updateUI();
+
+      function signature(str){ return str.split('').sort().join(''); }
+
+      function loadWordMap(){ return window.WORDMAP || {}; }
+
+      function renderResults(words){
+        list.innerHTML=''; count.textContent=words.length;
+        if(words.length===0){
+          const li=document.createElement('li');
+          li.textContent='No anagrams found';
+          list.appendChild(li);
+          return;
+        }
+        const uniq = Array.from(new Set(words)).sort();
+        count.textContent=uniq.length;
+        for(const w of uniq){
+          const li=document.createElement('li');
+          li.textContent=w;
+          list.appendChild(li);
+        }
+      }
+
+      button.addEventListener('click', ()=>{
+        if(button.disabled) return;
+        results.setAttribute('aria-busy','true');
+        button.disabled=true;
+        const letters=input.value;
+        const sig=signature(letters);
+        const wordmap=loadWordMap();
+        const matches=wordmap[sig] || [];
+        renderResults(matches);
+        results.setAttribute('aria-busy','false');
+        button.disabled=(input.value.length!==7);
+      });
+
+      input.addEventListener('keydown', e=>{
+        if(e.key==='Enter' && !button.disabled){ e.preventDefault(); button.click(); }
+      });
+    })();
+  </script>
+</body>
+</html>
+
